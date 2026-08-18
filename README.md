@@ -7,6 +7,30 @@
 - 面经按批次生成并保存断点，应用重启后可从上一个完成批次继续
 - AI 生成的参考文档 URL 经过受信官方域名白名单校验，App 内置安全来源查看窗口
 
+## macOS 提示“Apple 无法验证 mianshi”
+
+当前 GitHub Release 中的 macOS 安装包尚未使用 Apple Developer ID 签名和公证，因此首次启动时可能被 Gatekeeper 阻止。这不代表系统检测到了恶意软件，但 macOS 无法通过 Apple 公证确认该 App。
+
+仅在确认安装包来自[本项目 GitHub Releases](https://github.com/gaoio/mianshi/releases/latest)时，按以下方式打开：
+
+1. 尝试打开一次 `mianshi.app`，看到提示后关闭对话框。
+2. 打开“系统设置”→“隐私与安全性”，向下滚动到“安全性”。
+3. 在被阻止的 `mianshi` 提示旁点击“仍要打开”。
+4. 输入 Mac 登录密码或使用 Touch ID，再次点击“打开”。
+
+“仍要打开”通常只会在首次尝试启动后约一小时内显示。完成一次后，macOS 会将该 App 保存为例外。具体流程可参考 [Apple 官方说明](https://support.apple.com/guide/mac-help/mchleab3a043/mac)。
+
+如果系统设置中仍无法放行，并且已经核实下载来源，可以在终端中移除该 App 的隔离标记：
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/mianshi.app"
+open "/Applications/mianshi.app"
+```
+
+不要使用 `spctl --master-disable` 全局关闭 Gatekeeper。如果提示内容是“将损坏您的电脑”或系统检测到恶意软件，请立即停止运行并重新下载安装包。
+
+若要从发布端彻底消除此提示，需要加入 Apple Developer Program，使用 Developer ID Application 证书签名，并在 GitHub Actions 中完成 Apple notarization；Tauri updater 签名不能代替 Apple 公证。
+
 ## 本地开发
 
 ```bash
