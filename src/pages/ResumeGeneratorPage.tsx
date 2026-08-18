@@ -181,15 +181,6 @@ export function ResumeGeneratorPage({ onBack, onOpenSettings }: ResumeGeneratorP
       <div className="page-content resume-generator-page">
         {!resume ? (
           <div className="resume-generator-start">
-            <header className="resume-generator-hero">
-              <span className="resume-generator-hero-icon" aria-hidden="true">
-                <MagicWand size={27} weight="duotone" />
-              </span>
-              <p className="page-eyebrow">AI RESUME BUILDER</p>
-              <h1>一句话，生成一份好简历</h1>
-              <p>描述目标岗位、经验与技能，AI 会整理为专业结构；生成后可以修改内容、切换模板并导出 PDF。</p>
-            </header>
-
             <button className="model-config-card" onClick={onOpenSettings} disabled={generating}>
               <span className="model-config-icon">
                 <Sparkle size={21} weight="fill" aria-hidden="true" />
