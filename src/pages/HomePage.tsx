@@ -7,16 +7,18 @@ import {
   Notebook,
   ShieldCheck,
   Sparkle,
+  Target,
 } from '@phosphor-icons/react';
 import { TopBar } from '../components/TopBar';
 
 interface HomePageProps {
   onInterviewExperiences: () => void;
   onResumeGenerator: () => void;
+  onJobApplication: () => void;
   onSettings: () => void;
 }
 
-type ToolKey = 'interview' | 'resume';
+type ToolKey = 'interview' | 'resume' | 'job';
 
 const TOOL_CONTENT = {
   interview: {
@@ -35,18 +37,28 @@ const TOOL_CONTENT = {
     action: '开始制作简历',
     Icon: FileText,
   },
+  job: {
+    key: 'job' as const,
+    label: '岗位准备',
+    description: '输入招聘 JD，快速锁定面试重点',
+    capabilities: ['提炼 JD 面试重点', '分析简历匹配度', '优化并导出简历'],
+    action: '开始岗位准备',
+    Icon: Target,
+  },
 } as const;
 
 export function HomePage({
   onInterviewExperiences,
   onResumeGenerator,
+  onJobApplication,
   onSettings,
 }: HomePageProps) {
   const [activeTool, setActiveTool] = useState<ToolKey>('interview');
 
   function openTool(tool: ToolKey) {
     if (tool === 'interview') onInterviewExperiences();
-    else onResumeGenerator();
+    else if (tool === 'resume') onResumeGenerator();
+    else onJobApplication();
   }
 
   return (
@@ -83,9 +95,9 @@ export function HomePage({
               ))}
             </div>
           </div>
-          <h1>面试复盘与简历，一站式搞定</h1>
+          <h1>从简历到面试，一站式准备</h1>
           <p className="feature-home-hero-sub">
-            粘贴面试记录自动整理成题单，或一句话生成专业简历。所有内容与配置仅保存在当前设备。
+            整理面经、生成简历，或输入企业 JD 定制面试准备。所有内容与配置仅保存在当前设备。
           </p>
         </section>
 

@@ -11,6 +11,8 @@
     "allow-open-source-window",
     "allow-test-model-connection",
     "allow-generate-resume",
+    "allow-analyze-job-interview-focus",
+    "allow-analyze-job-application",
     "allow-analyze-interview-experience",
     "allow-cancel-interview-generation",
     "allow-get-app-update-status",

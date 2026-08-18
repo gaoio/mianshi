@@ -4,6 +4,8 @@ fn main() {
             "open_source_window",
             "test_model_connection",
             "generate_resume",
+            "analyze_job_interview_focus",
+            "analyze_job_application",
             "analyze_interview_experience",
             "cancel_interview_generation",
             "get_app_update_status",

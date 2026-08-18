@@ -1,5 +1,11 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { GeneratedInterviewExperience, GeneratedResume, GenerationResume } from './types';
+import type {
+  GeneratedInterviewExperience,
+  GeneratedResume,
+  GenerationResume,
+  JobApplicationAnalysis,
+  JobInterviewFocus,
+} from './types';
 import { getModelSettingsRecord, saveModelSettingsRecord } from './localStorage';
 
 export interface ModelSettings {
@@ -241,6 +247,48 @@ export async function generateResume(
     request: {
       settings: normalizeModelSettings(settings),
       description: normalizedDescription,
+    },
+  });
+}
+
+export async function analyzeJobApplication(
+  settings: ModelSettings,
+  resumeText: string,
+  jobDescription: string,
+): Promise<JobApplicationAnalysis> {
+  assertNativeRuntime();
+  const normalizedResume = resumeText.trim();
+  const normalizedJobDescription = jobDescription.trim();
+  const resumeLength = Array.from(normalizedResume).length;
+  const jobDescriptionLength = Array.from(normalizedJobDescription).length;
+  if (resumeLength < 20) throw new Error('简历内容至少需要 20 个字符');
+  if (resumeLength > 50_000) throw new Error('简历内容不能超过 50000 个字符');
+  if (jobDescriptionLength < 20) throw new Error('招聘 JD 至少需要 20 个字符');
+  if (jobDescriptionLength > 30_000) throw new Error('招聘 JD 不能超过 30000 个字符');
+
+  return invoke<JobApplicationAnalysis>('analyze_job_application', {
+    request: {
+      settings: normalizeModelSettings(settings),
+      resumeText: normalizedResume,
+      jobDescription: normalizedJobDescription,
+    },
+  });
+}
+
+export async function analyzeJobInterviewFocus(
+  settings: ModelSettings,
+  jobDescription: string,
+): Promise<JobInterviewFocus> {
+  assertNativeRuntime();
+  const normalizedJobDescription = jobDescription.trim();
+  const jobDescriptionLength = Array.from(normalizedJobDescription).length;
+  if (jobDescriptionLength < 20) throw new Error('招聘 JD 至少需要 20 个字符');
+  if (jobDescriptionLength > 30_000) throw new Error('招聘 JD 不能超过 30000 个字符');
+
+  return invoke<JobInterviewFocus>('analyze_job_interview_focus', {
+    request: {
+      settings: normalizeModelSettings(settings),
+      jobDescription: normalizedJobDescription,
     },
   });
 }

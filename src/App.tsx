@@ -24,6 +24,9 @@ const ModelSettingsPage = lazy(() =>
 const ResumeGeneratorPage = lazy(() =>
   import('./pages/ResumeGeneratorPage').then((module) => ({ default: module.ResumeGeneratorPage })),
 );
+const JobApplicationPage = lazy(() =>
+  import('./pages/JobApplicationPage').then((module) => ({ default: module.JobApplicationPage })),
+);
 const SettingsPage = lazy(() =>
   import('./pages/SettingsPage').then((module) => ({ default: module.SettingsPage })),
 );
@@ -225,6 +228,7 @@ function App() {
           <HomePage
             onInterviewExperiences={() => push({ name: 'experiences' })}
             onResumeGenerator={() => push({ name: 'resumeGenerator' })}
+            onJobApplication={() => push({ name: 'jobApplication' })}
             onSettings={() => push({ name: 'settings' })}
           />
         );
@@ -252,6 +256,13 @@ function App() {
       case 'resumeGenerator':
         return (
           <ResumeGeneratorPage
+            onBack={canPop ? pop : undefined}
+            onOpenSettings={() => push({ name: 'modelSettings' })}
+          />
+        );
+      case 'jobApplication':
+        return (
+          <JobApplicationPage
             onBack={canPop ? pop : undefined}
             onOpenSettings={() => push({ name: 'modelSettings' })}
           />

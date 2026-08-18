@@ -1,4 +1,12 @@
-import { BriefcaseMetal, FileText, GearSix, House, Notebook, ShieldCheck } from '@phosphor-icons/react';
+import {
+  BriefcaseMetal,
+  FileText,
+  GearSix,
+  House,
+  Notebook,
+  ShieldCheck,
+  Target,
+} from '@phosphor-icons/react';
 import type { Screen } from '../lib/navigation';
 
 interface AppNavProps {
@@ -12,6 +20,8 @@ function activeKey(screen: Screen): string {
       return 'home';
     case 'resumeGenerator':
       return 'resume';
+    case 'jobApplication':
+      return 'job';
     case 'settings':
     case 'modelSettings':
     case 'appUpdate':
@@ -30,6 +40,7 @@ const NAV_ITEMS: readonly {
   { key: 'home', label: '求职工具', screen: { name: 'home' }, Icon: House },
   { key: 'experiences', label: '我的面经', screen: { name: 'experiences' }, Icon: Notebook },
   { key: 'resume', label: '简历生成器', screen: { name: 'resumeGenerator' }, Icon: FileText },
+  { key: 'job', label: '岗位准备', screen: { name: 'jobApplication' }, Icon: Target },
   { key: 'settings', label: '设置', screen: { name: 'settings' }, Icon: GearSix },
 ] as const;
 

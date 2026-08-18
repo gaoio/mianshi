@@ -112,3 +112,39 @@ export interface GeneratedResume {
   projects: ResumeProject[];
   education: ResumeEducation[];
 }
+
+export interface JobInterviewQuestion {
+  question: string;
+  category: string;
+  difficulty: 1 | 2 | 3;
+  whyAsked: string;
+  answerGuide: string[];
+}
+
+export interface JobInterviewFocusArea {
+  title: string;
+  priority: 1 | 2 | 3;
+  reason: string;
+  keyPoints: string[];
+  likelyQuestions: string[];
+}
+
+export interface JobInterviewFocus {
+  targetRole: string;
+  overview: string;
+  keywords: string[];
+  focusAreas: JobInterviewFocusArea[];
+  preparationChecklist: string[];
+}
+
+export interface JobApplicationAnalysis {
+  targetRole: string;
+  matchScore: number;
+  summary: string;
+  strengths: string[];
+  gaps: string[];
+  keywords: string[];
+  resumeChanges: string[];
+  interviewQuestions: JobInterviewQuestion[];
+  optimizedResume: GeneratedResume;
+}

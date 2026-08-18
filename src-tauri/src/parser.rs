@@ -103,6 +103,50 @@ pub struct GeneratedResume {
     pub education: Vec<GeneratedResumeEducation>,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratedJobInterviewQuestion {
+    pub question: String,
+    pub category: String,
+    pub difficulty: u8,
+    pub why_asked: String,
+    pub answer_guide: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratedJobInterviewFocusArea {
+    pub title: String,
+    pub priority: u8,
+    pub reason: String,
+    pub key_points: Vec<String>,
+    pub likely_questions: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratedJobInterviewFocus {
+    pub target_role: String,
+    pub overview: String,
+    pub keywords: Vec<String>,
+    pub focus_areas: Vec<GeneratedJobInterviewFocusArea>,
+    pub preparation_checklist: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratedJobApplicationAnalysis {
+    pub target_role: String,
+    pub match_score: u8,
+    pub summary: String,
+    pub strengths: Vec<String>,
+    pub gaps: Vec<String>,
+    pub keywords: Vec<String>,
+    pub resume_changes: Vec<String>,
+    pub interview_questions: Vec<GeneratedJobInterviewQuestion>,
+    pub optimized_resume: GeneratedResume,
+}
+
 fn find_json_object(value: &str) -> Option<&str> {
     let bytes = value.as_bytes();
     let start = bytes.iter().position(|byte| *byte == b'{')?;
@@ -166,6 +210,12 @@ pub fn parse_json_object_response(content: &str) -> Result<serde_json::Value, St
                     || (value.get("personal").is_some()
                         && value.get("skills").is_some()
                         && value.get("experience").is_some())
+                    || (value.get("targetRole").is_some()
+                        && value.get("interviewQuestions").is_some()
+                        && value.get("optimizedResume").is_some())
+                    || (value.get("targetRole").is_some()
+                        && value.get("focusAreas").is_some()
+                        && value.get("preparationChecklist").is_some())
                 {
                     return Ok(value);
                 }
@@ -286,6 +336,10 @@ fn string_array(
 
 pub fn parse_generated_resume(content: &str) -> Result<GeneratedResume, String> {
     let root = parse_json_object_response(content)?;
+    parse_generated_resume_value(&root)
+}
+
+fn parse_generated_resume_value(root: &serde_json::Value) -> Result<GeneratedResume, String> {
     let raw_personal = root
         .get("personal")
         .and_then(serde_json::Value::as_object)
@@ -402,6 +456,169 @@ pub fn parse_generated_resume(content: &str) -> Result<GeneratedResume, String> 
         experience,
         projects,
         education,
+    })
+}
+
+pub fn parse_job_application_analysis(
+    content: &str,
+) -> Result<GeneratedJobApplicationAnalysis, String> {
+    let root = parse_json_object_response(content)?;
+    let target_role = required_string(&root, "targetRole", 120)?;
+    let match_score = root
+        .get("matchScore")
+        .and_then(serde_json::Value::as_u64)
+        .filter(|score| *score <= 100)
+        .and_then(|score| u8::try_from(score).ok())
+        .ok_or_else(|| "模型结果中的 matchScore 必须是 0 到 100 的整数".to_string())?;
+    let summary = required_string(&root, "summary", 1_000)?;
+
+    let strengths = string_array(root.get("strengths"), "strengths", 10, 240)?;
+    let gaps = string_array(root.get("gaps"), "gaps", 10, 240)?;
+    let keywords = string_array(root.get("keywords"), "keywords", 24, 60)?;
+    let resume_changes = string_array(root.get("resumeChanges"), "resumeChanges", 12, 240)?;
+    if strengths.is_empty() || gaps.is_empty() || keywords.is_empty() || resume_changes.is_empty() {
+        return Err("岗位分析的优势、差距、关键词和简历改动均不能为空".to_string());
+    }
+
+    let raw_questions = root
+        .get("interviewQuestions")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| "模型结果缺少 interviewQuestions 数组".to_string())?;
+    if !(6..=20).contains(&raw_questions.len()) {
+        return Err("针对性面试题需为 6 到 20 道".to_string());
+    }
+    let mut interview_questions = Vec::with_capacity(raw_questions.len());
+    let mut seen_questions = HashSet::new();
+    for (index, raw) in raw_questions.iter().enumerate() {
+        let question = required_string(raw, "question", 300)
+            .map_err(|error| format!("第 {} 道岗位面试题无效：{error}", index + 1))?;
+        let dedupe_key = question
+            .chars()
+            .filter(|character| !character.is_whitespace())
+            .collect::<String>()
+            .to_lowercase();
+        if !seen_questions.insert(dedupe_key) {
+            continue;
+        }
+        let answer_guide = string_array(raw.get("answerGuide"), "answerGuide", 6, 300)
+            .map_err(|error| format!("第 {} 道岗位面试题无效：{error}", index + 1))?;
+        if !(2..=6).contains(&answer_guide.len()) {
+            return Err(format!(
+                "第 {} 道岗位面试题的回答提纲需为 2 到 6 条",
+                index + 1
+            ));
+        }
+        interview_questions.push(GeneratedJobInterviewQuestion {
+            question,
+            category: required_string(raw, "category", 60)
+                .map_err(|error| format!("第 {} 道岗位面试题无效：{error}", index + 1))?,
+            difficulty: parse_difficulty(raw.get("difficulty")),
+            why_asked: required_string(raw, "whyAsked", 500)
+                .map_err(|error| format!("第 {} 道岗位面试题无效：{error}", index + 1))?,
+            answer_guide,
+        });
+    }
+    if interview_questions.len() < 6 {
+        return Err("模型返回的有效且不重复的岗位面试题少于 6 道".to_string());
+    }
+
+    let optimized_resume = root
+        .get("optimizedResume")
+        .ok_or_else(|| "模型结果缺少 optimizedResume 对象".to_string())
+        .and_then(parse_generated_resume_value)?;
+
+    Ok(GeneratedJobApplicationAnalysis {
+        target_role,
+        match_score,
+        summary,
+        strengths,
+        gaps,
+        keywords,
+        resume_changes,
+        interview_questions,
+        optimized_resume,
+    })
+}
+
+pub fn parse_job_interview_focus(content: &str) -> Result<GeneratedJobInterviewFocus, String> {
+    let root = parse_json_object_response(content)?;
+    let target_role = required_string(&root, "targetRole", 120)?;
+    let overview = required_string(&root, "overview", 1_000)?;
+    let keywords = string_array(root.get("keywords"), "keywords", 24, 60)?;
+    if keywords.is_empty() {
+        return Err("面试重点中的 JD 关键词不能为空".to_string());
+    }
+
+    let raw_areas = root
+        .get("focusAreas")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| "模型结果缺少 focusAreas 数组".to_string())?;
+    if !(4..=10).contains(&raw_areas.len()) {
+        return Err("面试重点需包含 4 到 10 个主题".to_string());
+    }
+
+    let mut focus_areas = Vec::with_capacity(raw_areas.len());
+    let mut seen_titles = HashSet::new();
+    for (index, raw) in raw_areas.iter().enumerate() {
+        let title = required_string(raw, "title", 120)
+            .map_err(|error| format!("第 {} 个面试重点无效：{error}", index + 1))?;
+        let dedupe_key = title
+            .chars()
+            .filter(|character| !character.is_whitespace())
+            .collect::<String>()
+            .to_lowercase();
+        if !seen_titles.insert(dedupe_key) {
+            continue;
+        }
+        let priority = raw
+            .get("priority")
+            .and_then(serde_json::Value::as_u64)
+            .filter(|priority| (1..=3).contains(priority))
+            .and_then(|priority| u8::try_from(priority).ok())
+            .ok_or_else(|| format!("第 {} 个面试重点的 priority 必须是 1、2 或 3", index + 1))?;
+        let key_points = string_array(raw.get("keyPoints"), "keyPoints", 6, 300)
+            .map_err(|error| format!("第 {} 个面试重点无效：{error}", index + 1))?;
+        if !(2..=6).contains(&key_points.len()) {
+            return Err(format!(
+                "第 {} 个面试重点的复习要点需为 2 到 6 条",
+                index + 1
+            ));
+        }
+        let likely_questions = string_array(raw.get("likelyQuestions"), "likelyQuestions", 5, 300)
+            .map_err(|error| format!("第 {} 个面试重点无效：{error}", index + 1))?;
+        if likely_questions.is_empty() {
+            return Err(format!("第 {} 个面试重点至少需要 1 道可能追问", index + 1));
+        }
+
+        focus_areas.push(GeneratedJobInterviewFocusArea {
+            title,
+            priority,
+            reason: required_string(raw, "reason", 500)
+                .map_err(|error| format!("第 {} 个面试重点无效：{error}", index + 1))?,
+            key_points,
+            likely_questions,
+        });
+    }
+    if focus_areas.len() < 4 {
+        return Err("模型返回的有效且不重复的面试重点少于 4 个".to_string());
+    }
+
+    let preparation_checklist = string_array(
+        root.get("preparationChecklist"),
+        "preparationChecklist",
+        10,
+        300,
+    )?;
+    if preparation_checklist.len() < 3 {
+        return Err("面试前准备清单至少需要 3 项".to_string());
+    }
+
+    Ok(GeneratedJobInterviewFocus {
+        target_role,
+        overview,
+        keywords,
+        focus_areas,
+        preparation_checklist,
     })
 }
 
@@ -564,7 +781,8 @@ pub fn parse_generated_experience(content: &str) -> Result<GeneratedInterviewExp
 mod tests {
     use super::{
         find_json_object, parse_generated_experience, parse_generated_outline,
-        parse_generated_resume, parse_json_object_response,
+        parse_generated_resume, parse_job_application_analysis, parse_job_interview_focus,
+        parse_json_object_response,
     };
 
     #[test]
@@ -720,6 +938,110 @@ mod tests {
         assert_eq!(resume.experience[0].start_date, "2023.06");
         assert_eq!(resume.projects[0].technologies, vec!["Go", "Kafka"]);
         assert_eq!(resume.education[0].major, "计算机科学");
+    }
+
+    #[test]
+    fn parses_job_application_analysis_with_optimized_resume() {
+        let questions = (1..=6)
+            .map(|index| {
+                serde_json::json!({
+                    "question": format!("第 {index} 道岗位问题是什么？"),
+                    "category": "项目深挖",
+                    "difficulty": 2,
+                    "whyAsked": "验证候选人的实际项目经验",
+                    "answerGuide": ["说明项目背景和个人职责", "结合已有经历说明技术取舍"]
+                })
+            })
+            .collect::<Vec<_>>();
+        let content = serde_json::json!({
+            "targetRole": "Go 后端工程师",
+            "matchScore": 82,
+            "summary": "后端基础匹配，系统设计经验需要进一步验证。",
+            "strengths": ["已有 Go 服务开发经验"],
+            "gaps": ["简历未体现大规模系统容量"],
+            "keywords": ["Go", "MySQL", "Redis"],
+            "resumeChanges": ["将岗位相关技能前置"],
+            "interviewQuestions": questions,
+            "optimizedResume": {
+                "personal": {
+                    "name": "张三",
+                    "headline": "Go 后端工程师",
+                    "phone": "",
+                    "email": "",
+                    "location": "上海",
+                    "website": ""
+                },
+                "summary": "三年后端服务开发经验。",
+                "skills": [{"category": "后端", "items": ["Go", "MySQL"]}],
+                "experience": [{
+                    "company": "示例科技",
+                    "role": "后端工程师",
+                    "startDate": "2023.06",
+                    "endDate": "至今",
+                    "highlights": ["负责订单服务开发"]
+                }],
+                "projects": [],
+                "education": []
+            }
+        })
+        .to_string();
+
+        let analysis = parse_job_application_analysis(&content).unwrap();
+        assert_eq!(analysis.target_role, "Go 后端工程师");
+        assert_eq!(analysis.match_score, 82);
+        assert_eq!(analysis.interview_questions.len(), 6);
+        assert_eq!(analysis.optimized_resume.personal.name, "张三");
+    }
+
+    #[test]
+    fn parses_job_interview_focus_with_prioritized_areas() {
+        let focus_areas = (1..=4)
+            .map(|index| {
+                serde_json::json!({
+                    "title": format!("重点主题 {index}"),
+                    "priority": if index == 1 { 3 } else { 2 },
+                    "reason": "JD 明确要求掌握该能力",
+                    "keyPoints": ["复习核心原理", "准备项目中的实际取舍"],
+                    "likelyQuestions": ["请结合项目说明你如何应用这项能力？"]
+                })
+            })
+            .collect::<Vec<_>>();
+        let content = serde_json::json!({
+            "targetRole": "Go 后端工程师",
+            "overview": "重点考察服务端基础与高并发系统设计。",
+            "keywords": ["Go", "MySQL", "Redis"],
+            "focusAreas": focus_areas,
+            "preparationChecklist": ["准备项目案例", "复盘技术取舍", "整理反问问题"]
+        })
+        .to_string();
+
+        let focus = parse_job_interview_focus(&content).unwrap();
+        assert_eq!(focus.target_role, "Go 后端工程师");
+        assert_eq!(focus.focus_areas.len(), 4);
+        assert_eq!(focus.focus_areas[0].priority, 3);
+        assert_eq!(focus.preparation_checklist.len(), 3);
+    }
+
+    #[test]
+    fn rejects_job_interview_focus_with_invalid_priority() {
+        let content = serde_json::json!({
+            "targetRole": "产品经理",
+            "overview": "重点考察产品判断。",
+            "keywords": ["需求分析"],
+            "focusAreas": (1..=4).map(|index| serde_json::json!({
+                "title": format!("主题 {index}"),
+                "priority": 4,
+                "reason": "JD 明确要求",
+                "keyPoints": ["要点一", "要点二"],
+                "likelyQuestions": ["问题一"]
+            })).collect::<Vec<_>>(),
+            "preparationChecklist": ["准备一", "准备二", "准备三"]
+        })
+        .to_string();
+
+        assert!(parse_job_interview_focus(&content)
+            .unwrap_err()
+            .contains("priority 必须是 1、2 或 3"));
     }
 
     #[test]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-analyze-job-interview-focus"
+description = "Enables the analyze_job_interview_focus command without any pre-configured scope."
+commands.allow = ["analyze_job_interview_focus"]
+
+[[permission]]
+identifier = "deny-analyze-job-interview-focus"
+description = "Denies the analyze_job_interview_focus command without any pre-configured scope."
+commands.deny = ["analyze_job_interview_focus"]

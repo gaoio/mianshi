@@ -25,6 +25,8 @@ pub enum ModelOutputFormat {
     InterviewOutlineJson,
     InterviewExperienceJson,
     ResumeJson,
+    JobApplicationJson,
+    JobInterviewFocusJson,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -341,18 +343,136 @@ fn resume_schema() -> serde_json::Value {
     })
 }
 
+fn job_application_schema() -> serde_json::Value {
+    serde_json::json!({
+        "type": "object",
+        "properties": {
+            "targetRole": { "type": "string" },
+            "matchScore": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "summary": { "type": "string" },
+            "strengths": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 10,
+                "items": { "type": "string" }
+            },
+            "gaps": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 10,
+                "items": { "type": "string" }
+            },
+            "keywords": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 24,
+                "items": { "type": "string" }
+            },
+            "resumeChanges": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 12,
+                "items": { "type": "string" }
+            },
+            "interviewQuestions": {
+                "type": "array",
+                "minItems": 6,
+                "maxItems": 20,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "question": { "type": "string" },
+                        "category": { "type": "string" },
+                        "difficulty": { "type": "integer", "enum": [1, 2, 3] },
+                        "whyAsked": { "type": "string" },
+                        "answerGuide": {
+                            "type": "array",
+                            "minItems": 2,
+                            "maxItems": 6,
+                            "items": { "type": "string" }
+                        }
+                    },
+                    "required": ["question", "category", "difficulty", "whyAsked", "answerGuide"],
+                    "additionalProperties": false
+                }
+            },
+            "optimizedResume": resume_schema()
+        },
+        "required": [
+            "targetRole", "matchScore", "summary", "strengths", "gaps", "keywords",
+            "resumeChanges", "interviewQuestions", "optimizedResume"
+        ],
+        "additionalProperties": false
+    })
+}
+
+fn job_interview_focus_schema() -> serde_json::Value {
+    serde_json::json!({
+        "type": "object",
+        "properties": {
+            "targetRole": { "type": "string" },
+            "overview": { "type": "string" },
+            "keywords": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 24,
+                "items": { "type": "string" }
+            },
+            "focusAreas": {
+                "type": "array",
+                "minItems": 4,
+                "maxItems": 10,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "title": { "type": "string" },
+                        "priority": { "type": "integer", "enum": [1, 2, 3] },
+                        "reason": { "type": "string" },
+                        "keyPoints": {
+                            "type": "array",
+                            "minItems": 2,
+                            "maxItems": 6,
+                            "items": { "type": "string" }
+                        },
+                        "likelyQuestions": {
+                            "type": "array",
+                            "minItems": 1,
+                            "maxItems": 5,
+                            "items": { "type": "string" }
+                        }
+                    },
+                    "required": ["title", "priority", "reason", "keyPoints", "likelyQuestions"],
+                    "additionalProperties": false
+                }
+            },
+            "preparationChecklist": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 10,
+                "items": { "type": "string" }
+            }
+        },
+        "required": ["targetRole", "overview", "keywords", "focusAreas", "preparationChecklist"],
+        "additionalProperties": false
+    })
+}
+
 fn output_schema(output_format: ModelOutputFormat) -> Option<serde_json::Value> {
     match output_format {
         ModelOutputFormat::Text => None,
         ModelOutputFormat::InterviewOutlineJson => Some(interview_outline_schema()),
         ModelOutputFormat::InterviewExperienceJson => Some(interview_experience_schema()),
         ModelOutputFormat::ResumeJson => Some(resume_schema()),
+        ModelOutputFormat::JobApplicationJson => Some(job_application_schema()),
+        ModelOutputFormat::JobInterviewFocusJson => Some(job_interview_focus_schema()),
     }
 }
 
 fn output_schema_name(output_format: ModelOutputFormat) -> &'static str {
     match output_format {
         ModelOutputFormat::ResumeJson => "resume",
+        ModelOutputFormat::JobApplicationJson => "job_application_analysis",
+        ModelOutputFormat::JobInterviewFocusJson => "job_interview_focus",
         ModelOutputFormat::Text
         | ModelOutputFormat::InterviewOutlineJson
         | ModelOutputFormat::InterviewExperienceJson => "interview_experience",
@@ -1016,6 +1136,66 @@ mod tests {
                 .pointer("/properties/experience/items/properties/highlights/maxItems")
                 .and_then(serde_json::Value::as_u64),
             Some(8)
+        );
+    }
+
+    #[test]
+    fn requests_strict_job_application_schema() {
+        let value = settings("https://api.example.com/v1");
+        let body = model_request_body(
+            &value,
+            "system",
+            "user",
+            ModelOutputFormat::JobApplicationJson,
+        );
+
+        assert_eq!(
+            body.pointer("/response_format/json_schema/name")
+                .and_then(serde_json::Value::as_str),
+            Some("job_application_analysis")
+        );
+        let schema = body.pointer("/response_format/json_schema/schema").unwrap();
+        assert_eq!(
+            schema
+                .pointer("/properties/interviewQuestions/minItems")
+                .and_then(serde_json::Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            schema
+                .pointer("/properties/optimizedResume/properties/personal/additionalProperties")
+                .and_then(serde_json::Value::as_bool),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn requests_strict_job_interview_focus_schema() {
+        let value = settings("https://api.example.com/v1");
+        let body = model_request_body(
+            &value,
+            "system",
+            "user",
+            ModelOutputFormat::JobInterviewFocusJson,
+        );
+
+        assert_eq!(
+            body.pointer("/response_format/json_schema/name")
+                .and_then(serde_json::Value::as_str),
+            Some("job_interview_focus")
+        );
+        let schema = body.pointer("/response_format/json_schema/schema").unwrap();
+        assert_eq!(
+            schema
+                .pointer("/properties/focusAreas/minItems")
+                .and_then(serde_json::Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            schema
+                .pointer("/properties/focusAreas/items/additionalProperties")
+                .and_then(serde_json::Value::as_bool),
+            Some(false)
         );
     }
 

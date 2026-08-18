@@ -30,7 +30,7 @@ function hasStringFields(value: Record<string, unknown>, fields: readonly string
   return fields.every((field) => typeof value[field] === 'string');
 }
 
-function isGeneratedResume(value: unknown): value is GeneratedResume {
+export function isGeneratedResume(value: unknown): value is GeneratedResume {
   if (!value || typeof value !== 'object') return false;
   const resume = value as Partial<GeneratedResume>;
   const personal = resume.personal;

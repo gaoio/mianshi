@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-analyze-job-application"
+description = "Enables the analyze_job_application command without any pre-configured scope."
+commands.allow = ["analyze_job_application"]
+
+[[permission]]
+identifier = "deny-analyze-job-application"
+description = "Denies the analyze_job_application command without any pre-configured scope."
+commands.deny = ["analyze_job_application"]

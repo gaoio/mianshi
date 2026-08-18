@@ -6,6 +6,7 @@ export type Screen =
   | { name: 'experiences' }
   | { name: 'experienceCreate' }
   | { name: 'resumeGenerator' }
+  | { name: 'jobApplication' }
   | { name: 'settings' }
   | { name: 'modelSettings' }
   | { name: 'appUpdate' }
