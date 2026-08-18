@@ -2,7 +2,7 @@ import { Brain, CaretRight, RocketLaunch, SlidersHorizontal } from '@phosphor-ic
 import { TopBar } from '../components/TopBar';
 
 interface SettingsPageProps {
-  onBack: () => void;
+  onBack?: () => void;
   onModelSettings: () => void;
   onAppUpdate: () => void;
 }

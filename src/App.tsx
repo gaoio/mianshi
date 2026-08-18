@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { onBackButtonPress } from '@tauri-apps/api/app';
-import { getCurrentWindow, PhysicalSize } from '@tauri-apps/api/window';
+import { currentMonitor, getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
+import { AppNav } from './components/AppNav';
 import type { Screen } from './lib/navigation';
 import type {
   InterviewExperience,
@@ -43,6 +44,7 @@ function App() {
   const [stack, setStack] = useState<Stack>([{ name: 'home' }]);
 
   const currentScreen = stack[stack.length - 1];
+  const canPop = stack.length > 1;
 
   // 返回键处理：用 ref 保存最新状态，避免监听器闭包捕获到旧值
   const stackRef = useRef(stack);
@@ -54,18 +56,20 @@ function App() {
     // 非 Tauri 运行环境（浏览器预览等）没有 IPC 注入，直接跳过
     if (!('__TAURI_INTERNALS__' in window)) return;
 
-    const STORAGE_KEY = 'mianshi-window-size';
+    const STORAGE_KEY = 'mianshi-window-size-v2';
     let disposed = false;
     let unregisterResized: (() => void) | undefined;
+    let unregisterScaleChanged: (() => void) | undefined;
+    let currentScaleFactor = 1;
 
-    function readSavedSize(): PhysicalSize | null {
+    function readSavedSize(): { width: number; height: number } | null {
       try {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (!saved) return null;
-        const parsed = JSON.parse(saved) as { width?: unknown; height?: unknown };
+        const parsed = JSON.parse(saved) as { version?: unknown; width?: unknown; height?: unknown };
         const width = typeof parsed.width === 'number' ? parsed.width : NaN;
         const height = typeof parsed.height === 'number' ? parsed.height : NaN;
-        if (width >= 640 && height >= 480) return new PhysicalSize(width, height);
+        if (parsed.version === 2 && width >= 720 && height >= 560) return { width, height };
       } catch {
         // 损坏的缓存值直接忽略，使用默认窗口尺寸
       }
@@ -73,9 +77,13 @@ function App() {
     }
 
     function saveWindowSize(width: number, height: number) {
-      if (width < 640 || height < 480) return;
+      if (width < 720 || height < 560) return;
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ width, height }));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          version: 2,
+          width: Math.round(width),
+          height: Math.round(height),
+        }));
       } catch {
         // 隐私模式等无法持久化时静默跳过
       }
@@ -88,24 +96,64 @@ function App() {
       // IPC 尚未就绪时静默降级，不阻塞页面渲染
       return;
     }
-    const savedSize = readSavedSize();
-    if (savedSize) {
-      windowHandle.setSize(savedSize).catch(() => {});
+
+    async function initializeWindowState() {
+      try {
+        currentScaleFactor = await windowHandle.scaleFactor();
+      } catch {
+        currentScaleFactor = 1;
+      }
+
+      const savedSize = readSavedSize();
+      if (savedSize && !disposed) {
+        let width = savedSize.width;
+        let height = savedSize.height;
+        try {
+          const monitor = await currentMonitor();
+          if (monitor) {
+            const workArea = monitor.workArea.size.toLogical(monitor.scaleFactor);
+            width = Math.min(width, Math.floor(workArea.width));
+            height = Math.min(height, Math.floor(workArea.height));
+          }
+        } catch {
+          // 无法读取显示器工作区时仍恢复已保存的逻辑尺寸
+        }
+        if (!disposed) {
+          await windowHandle.setSize(new LogicalSize(width, height)).catch(() => {});
+        }
+      }
+
+      if (disposed) return;
+      windowHandle
+        .onResized(({ payload }) => {
+          const logical = payload.toLogical(currentScaleFactor);
+          saveWindowSize(logical.width, logical.height);
+        })
+        .then((unlisten) => {
+          if (disposed) unlisten();
+          else unregisterResized = unlisten;
+        })
+        .catch(() => {});
+
+      windowHandle
+        .onScaleChanged(({ payload }) => {
+          currentScaleFactor = payload.scaleFactor;
+          const logical = payload.size.toLogical(payload.scaleFactor);
+          saveWindowSize(logical.width, logical.height);
+        })
+        .then((unlisten) => {
+          if (disposed) unlisten();
+          else unregisterScaleChanged = unlisten;
+        })
+        .catch(() => {});
     }
 
-    windowHandle
-      .onResized(({ payload }) => {
-        saveWindowSize(payload.width, payload.height);
-      })
-      .then((unlisten) => {
-        if (disposed) unlisten();
-        else unregisterResized = unlisten;
-      })
-      .catch(() => {});
+    void initializeWindowState();
 
     return () => {
       disposed = true;
       unregisterResized?.();
+      unregisterScaleChanged?.();
     };
   }, []);
 
@@ -150,6 +198,10 @@ function App() {
     setStack((prev) => [...prev.slice(0, -1), screen]);
   }
 
+  function navigateTo(screen: Screen) {
+    setStack([screen]);
+  }
+
   function openExperience(experience: InterviewExperience) {
     push({
       name: 'experienceQuestions',
@@ -179,7 +231,7 @@ function App() {
       case 'experiences':
         return (
           <InterviewExperiencesPage
-            onBack={pop}
+            onBack={canPop ? pop : undefined}
             onCreate={() => push({ name: 'experienceCreate' })}
             onSettings={() => push({ name: 'settings' })}
             onSelect={openExperience}
@@ -200,14 +252,14 @@ function App() {
       case 'resumeGenerator':
         return (
           <ResumeGeneratorPage
-            onBack={pop}
+            onBack={canPop ? pop : undefined}
             onOpenSettings={() => push({ name: 'modelSettings' })}
           />
         );
       case 'settings':
         return (
           <SettingsPage
-            onBack={pop}
+            onBack={canPop ? pop : undefined}
             onModelSettings={() => push({ name: 'modelSettings' })}
             onAppUpdate={() => push({ name: 'appUpdate' })}
           />
@@ -238,6 +290,7 @@ function App() {
 
   return (
     <div className="app-shell">
+      <AppNav currentScreen={currentScreen} onNavigate={navigateTo} />
       <Suspense fallback={<div className="page-content" />}>{renderScreen(currentScreen)}</Suspense>
     </div>
   );

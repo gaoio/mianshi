@@ -11,7 +11,7 @@ import {
   Trash,
 } from '@phosphor-icons/react';
 import { ResumeEditor } from '../components/ResumeEditor';
-import { RESUME_TEMPLATE_OPTIONS, ResumePreview } from '../components/ResumePreview';
+import { RESUME_TEMPLATE_OPTIONS, ResponsiveResumePreview } from '../components/ResumePreview';
 import { TopBar } from '../components/TopBar';
 import {
   EMPTY_MODEL_SETTINGS,
@@ -29,7 +29,7 @@ import {
 import type { GeneratedResume, ResumeTemplate } from '../lib/types';
 
 interface ResumeGeneratorPageProps {
-  onBack: () => void;
+  onBack?: () => void;
   onOpenSettings: () => void;
 }
 
@@ -323,7 +323,7 @@ export function ResumeGeneratorPage({ onBack, onOpenSettings }: ResumeGeneratorP
 
             {mode === 'preview' ? (
               <div className="resume-preview-stage">
-                <ResumePreview resume={resume} template={template} />
+                <ResponsiveResumePreview resume={resume} template={template} />
               </div>
             ) : (
               <ResumeEditor resume={resume} onChange={setResume} />

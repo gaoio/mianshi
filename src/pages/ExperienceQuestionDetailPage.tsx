@@ -150,61 +150,65 @@ export function ExperienceQuestionDetailPage({
               </div>
             )}
 
-            <div className="question-detail-answer experience-answer-body">
-              <div className="question-detail-answer-heading">
-                <h3>详细答案</h3>
-                <button
-                  className={`copy-answer-button${copied ? ' copy-answer-button-copied' : ''}`}
-                  onClick={() => void handleCopyAnswer()}
-                  aria-label={copied ? '已复制' : '复制答案'}
-                >
-                  {copied ? <Check size={15} weight="bold" aria-hidden="true" /> : <Copy size={15} weight="bold" aria-hidden="true" />}
-                  {copied ? '已复制' : '复制'}
-                </button>
-              </div>
-              {parseAnswerSections(question.answer).map((section, sectionIndex) => (
-                <section key={`${section.heading}-${sectionIndex}`} className="answer-section">
-                  {section.heading && (
-                    <h4 className="answer-section-heading">{section.heading}</h4>
-                  )}
-                  <p className="answer-section-body">{section.body}</p>
-                </section>
-              ))}
-              {question.code && (
-                <CodeBlock code={question.code} language={question.code_language} />
-              )}
-            </div>
-
-            {sources.length > 0 && (
-              <aside className="experience-sources" aria-label="参考文档">
-                <div className="experience-sources-heading">
-                  <BookOpenText size={19} weight="duotone" aria-hidden="true" />
-                  <h3>参考文档</h3>
+            <div className="experience-answer-layout">
+              <div className="question-detail-answer experience-answer-body">
+                <div className="question-detail-answer-heading">
+                  <h3>详细答案</h3>
+                  <button
+                    className={`copy-answer-button${copied ? ' copy-answer-button-copied' : ''}`}
+                    onClick={() => void handleCopyAnswer()}
+                    aria-label={copied ? '已复制' : '复制答案'}
+                  >
+                    {copied ? <Check size={15} weight="bold" aria-hidden="true" /> : <Copy size={15} weight="bold" aria-hidden="true" />}
+                    {copied ? '已复制' : '复制'}
+                  </button>
                 </div>
-                <ol>
-                  {sources.map((source) => (
-                    <li key={source.url}>
-                      <a
-                        href={source.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-busy={openingSourceUrl === source.url}
-                        onClick={(event) => void handleSourceClick(event, source.url)}
-                      >
-                        <span>{source.title}</span>
-                        <small>{new URL(source.url).hostname}</small>
-                      </a>
-                    </li>
-                  ))}
-                </ol>
-                {sourceError && <p className="question-source-error" role="alert">{sourceError}</p>}
-              </aside>
-            )}
+                {parseAnswerSections(question.answer).map((section, sectionIndex) => (
+                  <section key={`${section.heading}-${sectionIndex}`} className="answer-section">
+                    {section.heading && (
+                      <h4 className="answer-section-heading">{section.heading}</h4>
+                    )}
+                    <p className="answer-section-body">{section.body}</p>
+                  </section>
+                ))}
+                {question.code && (
+                  <CodeBlock code={question.code} language={question.code_language} />
+                )}
+              </div>
 
-            <aside className="ai-answer-notice">
-              <Info size={18} weight="duotone" aria-hidden="true" />
-              <span>答案和参考文档由你配置的第三方模型生成，请打开原文复核关键结论。</span>
-            </aside>
+              <aside className="experience-answer-aside">
+                {sources.length > 0 && (
+                  <div className="experience-sources" aria-label="参考文档">
+                    <div className="experience-sources-heading">
+                      <BookOpenText size={19} weight="duotone" aria-hidden="true" />
+                      <h3>参考文档</h3>
+                    </div>
+                    <ol>
+                      {sources.map((source) => (
+                        <li key={source.url}>
+                          <a
+                            href={source.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-busy={openingSourceUrl === source.url}
+                            onClick={(event) => void handleSourceClick(event, source.url)}
+                          >
+                            <span>{source.title}</span>
+                            <small>{new URL(source.url).hostname}</small>
+                          </a>
+                        </li>
+                      ))}
+                    </ol>
+                    {sourceError && <p className="question-source-error" role="alert">{sourceError}</p>}
+                  </div>
+                )}
+
+                <div className="ai-answer-notice">
+                  <Info size={18} weight="duotone" aria-hidden="true" />
+                  <span>答案和参考文档由你配置的第三方模型生成，请打开原文复核关键结论。</span>
+                </div>
+              </aside>
+            </div>
           </article>
         )}
       </div>

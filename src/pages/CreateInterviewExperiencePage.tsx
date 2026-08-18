@@ -239,81 +239,91 @@ export function CreateInterviewExperiencePage({
     <div className="page">
       <TopBar title="导入面经" onBack={onBack} />
       <div className="page-content experience-create-page">
-        <button className="model-config-card" onClick={onOpenSettings} disabled={busy}>
-          <span className="model-config-icon">
-            <Sparkle size={21} weight="fill" aria-hidden="true" />
-          </span>
-          <span className="model-config-copy">
-            <span>解析模型</span>
-            <strong>{settingsLoading ? '正在读取配置…' : modelSettingsSummary(settings)}</strong>
-          </span>
-          <GearSix size={20} weight="bold" aria-hidden="true" />
-        </button>
+        <div className="experience-create-layout">
+          <form className="experience-create-form" onSubmit={handleSubmit}>
+            <label className="form-field">
+              <span className="form-label">面经标题（可选）</span>
+              <input
+                className="form-input"
+                type="text"
+                value={title}
+                onChange={(event) => {
+                  editedRef.current = true;
+                  setTitle(event.target.value.slice(0, 120));
+                }}
+                placeholder="例如：某厂 Go 后端一面复盘"
+                disabled={busy}
+              />
+            </label>
 
-        <form className="experience-create-form" onSubmit={handleSubmit}>
-          <label className="form-field">
-            <span className="form-label">面经标题（可选）</span>
-            <input
-              className="form-input"
-              type="text"
-              value={title}
-              onChange={(event) => {
-                editedRef.current = true;
-                setTitle(event.target.value.slice(0, 120));
-              }}
-              placeholder="例如：某厂 Go 后端一面复盘"
-              disabled={busy}
-            />
-          </label>
-
-          <label className="form-field experience-content-field">
-            <span className="form-label-row">
-              <span className="form-label">面经原文</span>
-              <span className={rawLength > 100000 ? 'character-count character-count-error' : 'character-count'}>
-                {rawLength.toLocaleString('zh-CN')} / 100,000
+            <label className="form-field experience-content-field">
+              <span className="form-label-row">
+                <span className="form-label">面经原文</span>
+                <span className={rawLength > 100000 ? 'character-count character-count-error' : 'character-count'}>
+                  {rawLength.toLocaleString('zh-CN')} / 100,000
+                </span>
               </span>
-            </span>
-            <textarea
-              className="form-textarea experience-textarea"
-              value={rawContent}
-              onChange={(event) => {
-                editedRef.current = true;
-                setRawContent(event.target.value);
-                setError('');
-                if (resumeDraft) {
-                  setResumeDraft(null);
-                  void deleteGenerationDraft().catch(() => {});
-                }
-              }}
-              placeholder={'粘贴面试记录，例如：\n1. 自我介绍和项目难点\n2. Go 的 GMP 调度模型\n3. Redis 缓存一致性怎么做\n4. 手写 LRU…'}
-              disabled={busy}
-              autoFocus
-            />
-          </label>
+              <textarea
+                className="form-textarea experience-textarea"
+                value={rawContent}
+                onChange={(event) => {
+                  editedRef.current = true;
+                  setRawContent(event.target.value);
+                  setError('');
+                  if (resumeDraft) {
+                    setResumeDraft(null);
+                    void deleteGenerationDraft().catch(() => {});
+                  }
+                }}
+                placeholder={'粘贴面试记录，例如：\n1. 自我介绍和项目难点\n2. Go 的 GMP 调度模型\n3. Redis 缓存一致性怎么做\n4. 手写 LRU…'}
+                disabled={busy}
+                autoFocus
+              />
+            </label>
 
-          <div className="ai-generate-note">
-            <MagicWand size={21} weight="duotone" aria-hidden="true" />
-            <p>
-              {resumeDraft
-                ? `已保存生成断点 ${resumeDraft.questions.length} / ${resumeDraft.outline.questions.length}，提交后从这里继续。`
-                : 'AI 会去重并改写题目，生成结构化答案；结果仍建议结合实际业务复核。'}
-            </p>
-          </div>
+            <div className="ai-generate-note">
+              <MagicWand size={21} weight="duotone" aria-hidden="true" />
+              <p>
+                {resumeDraft
+                  ? `已保存生成断点 ${resumeDraft.questions.length} / ${resumeDraft.outline.questions.length}，提交后从这里继续。`
+                  : 'AI 会去重并改写题目，生成结构化答案；结果仍建议结合实际业务复核。'}
+              </p>
+            </div>
 
-          {!settingsLoading && !settingsReady && (
-            <button type="button" className="model-required-button" onClick={onOpenSettings}>
-              先配置第三方大模型
+            {error && <p className="form-message form-message-error">{error}</p>}
+
+            <button className="primary-button experience-generate-button" type="submit" disabled={!canSubmit}>
+              <Sparkle size={19} weight="fill" aria-hidden="true" />
+              {busy
+                ? '正在提取题目并生成答案…'
+                : resumeDraft ? '从断点继续生成' : 'AI 解析并生成题单'}
             </button>
-          )}
-          {error && <p className="form-message form-message-error">{error}</p>}
+          </form>
 
-          <button className="primary-button experience-generate-button" type="submit" disabled={!canSubmit}>
-            <Sparkle size={19} weight="fill" aria-hidden="true" />
-            {busy
-              ? '正在提取题目并生成答案…'
-              : resumeDraft ? '从断点继续生成' : 'AI 解析并生成题单'}
-          </button>
-        </form>
+          <aside className="experience-create-side">
+            <button className="model-config-card" onClick={onOpenSettings} disabled={busy}>
+              <span className="model-config-icon">
+                <Sparkle size={21} weight="fill" aria-hidden="true" />
+              </span>
+              <span className="model-config-copy">
+                <span>解析模型</span>
+                <strong>{settingsLoading ? '正在读取配置…' : modelSettingsSummary(settings)}</strong>
+              </span>
+              <GearSix size={20} weight="bold" aria-hidden="true" />
+            </button>
+
+            {!settingsLoading && !settingsReady && (
+              <button type="button" className="model-required-button" onClick={onOpenSettings}>
+                先配置第三方大模型
+              </button>
+            )}
+
+            <div className="ai-generate-note">
+              <Sparkle size={18} weight="duotone" aria-hidden="true" />
+              <p>配置后即可解析面经。内容与模型配置只保存在当前设备。</p>
+            </div>
+          </aside>
+        </div>
       </div>
       {busy && (
         <div className="experience-processing" role="status" aria-live="polite">

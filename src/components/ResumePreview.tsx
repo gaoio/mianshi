@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import type {
   GeneratedResume,
   ResumeEducation,
@@ -20,6 +20,43 @@ export const RESUME_TEMPLATE_OPTIONS: readonly {
 interface ResumePreviewProps {
   resume: GeneratedResume;
   template: ResumeTemplate;
+}
+
+const RESUME_PAGE_WIDTH = 794;
+
+export function ResponsiveResumePreview(props: ResumePreviewProps) {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const scalerRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const frame = frameRef.current;
+    const scaler = scalerRef.current;
+    const sheet = scaler?.querySelector<HTMLElement>('.resume-sheet');
+    if (!frame || !scaler || !sheet) return;
+
+    const updateScale = () => {
+      const availableWidth = frame.clientWidth;
+      if (availableWidth <= 0) return;
+      const scale = Math.min(1, availableWidth / RESUME_PAGE_WIDTH);
+      scaler.style.setProperty('--resume-preview-scale', String(scale));
+      frame.style.height = `${Math.ceil(sheet.scrollHeight * scale)}px`;
+    };
+
+    updateScale();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(frame);
+    observer.observe(sheet);
+    return () => observer.disconnect();
+  }, [props.resume, props.template]);
+
+  return (
+    <div className="resume-preview-frame" ref={frameRef}>
+      <div className="resume-preview-scaler" ref={scalerRef}>
+        <ResumePreview {...props} />
+      </div>
+    </div>
+  );
 }
 
 function dateRange(startDate: string, endDate: string): string {

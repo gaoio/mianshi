@@ -1,10 +1,24 @@
 package com.gao.mianshi
 
+import android.content.res.Configuration
+import android.os.Bundle
 import android.webkit.WebSettings
 import android.webkit.WebView
+import androidx.activity.enableEdgeToEdge
 
 class SourceActivity : TauriActivity() {
   override val handleBackNavigation: Boolean = true
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+    enableEdgeToEdge()
+    super.onCreate(savedInstanceState)
+    installSafeSystemInsets()
+  }
+
+  override fun onConfigurationChanged(newConfig: Configuration) {
+    super.onConfigurationChanged(newConfig)
+    updateSystemBarBackground()
+  }
 
   override fun onWebViewCreate(webView: WebView) {
     super.onWebViewCreate(webView)

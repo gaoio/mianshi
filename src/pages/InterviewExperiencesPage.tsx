@@ -11,7 +11,7 @@ import type { InterviewExperience } from '../lib/types';
 import { TopBar } from '../components/TopBar';
 
 interface InterviewExperiencesPageProps {
-  onBack: () => void;
+  onBack?: () => void;
   onCreate: () => void;
   onSettings: () => void;
   onSelect: (experience: InterviewExperience) => void;
