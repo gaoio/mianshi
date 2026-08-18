@@ -72,11 +72,11 @@ git tag v0.2.0
 git push origin v0.2.0
 ```
 
-GitHub Actions 会先创建 Draft Release，并行构建 macOS（Apple Silicon 与 Intel）、Windows 和签名 Android APK。所有产物成功后才公开 Release；任一平台失败时 Release 保持草稿，客户端不会读取到半成品。
+GitHub Actions 会先创建 Draft Release，并行构建 macOS（Apple Silicon 与 Intel）和签名 Android APK。所有产物成功后才公开 Release；任一平台失败时 Release 保持草稿，客户端不会读取到半成品。
 
 ## 安全边界
 
 - 桌面安装包使用 Tauri updater 私钥签名，客户端只内置公钥。
 - 更新源、Android 清单和 APK 必须属于编译时绑定的同一 GitHub 仓库。
 - Android 安装仍由操作系统确认；首次从浏览器安装时，系统可能要求授权“安装未知应用”。
-- Tauri 更新签名不等于 Apple/Windows 商业代码签名。免费发布可运行，但 macOS Gatekeeper 或 Windows SmartScreen 仍可能提示来源未知。
+- Tauri 更新签名不等于 Apple Developer ID 签名与公证。免费发布可运行，但 macOS Gatekeeper 仍可能提示来源未知。

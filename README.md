@@ -1,6 +1,6 @@
 # Mianshi：AI 面经解析 App
 
-基于 Tauri、React 与 TypeScript 的桌面 / Android 面经解析工具。粘贴一份面试记录原文，配置第三方大模型（OpenAI Chat Completions、OpenAI Responses 或 Anthropic Messages 兼容服务）后，自动提取面试问题、去重改写、生成结构化详细答案（【结论】【原理】【实践】【边界】）并附带官方参考文档，保存为本机可复习的面经题单。
+基于 Tauri、React 与 TypeScript 的 macOS / Android 面经解析工具。粘贴一份面试记录原文，配置第三方大模型（OpenAI Chat Completions、OpenAI Responses 或 Anthropic Messages 兼容服务）后，自动提取面试问题、去重改写、生成结构化详细答案（【结论】【原理】【实践】【边界】）并附带官方参考文档，保存为本机可复习的面经题单。
 
 - 模型配置、API Key、生成草稿和面经题单统一保存在当前设备的应用 `localStorage` 中
 - 模型请求由 Rust 原生端发出，前端只传入配置
