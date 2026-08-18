@@ -1,12 +1,13 @@
-# Mianshi：AI 面经解析 App
+# Mianshi：AI 求职工具
 
-基于 Tauri、React 与 TypeScript 的 macOS / Android 面经解析工具。粘贴一份面试记录原文，配置第三方大模型（OpenAI Chat Completions、OpenAI Responses 或 Anthropic Messages 兼容服务）后，自动提取面试问题、去重改写、生成结构化详细答案（【结论】【原理】【实践】【边界】）并附带官方参考文档，保存为本机可复习的面经题单。
+基于 Tauri、React 与 TypeScript 的 macOS / Android AI 求职工具。粘贴一份面试记录原文，配置第三方大模型（OpenAI Chat Completions、OpenAI Responses 或 Anthropic Messages 兼容服务）后，自动提取面试问题、生成结构化答案并附带官方参考文档；也可以用一句话生成可编辑简历，切换模板并导出 PDF。
 
-- 模型配置、API Key、生成草稿和面经题单统一保存在当前设备的应用 `localStorage` 中
+- 模型配置、API Key、面经题单与简历草稿都只保存在当前设备的应用 `localStorage` 中
 - 模型请求由 Rust 原生端发出，前端只传入配置
 - 面经按批次生成并保存断点，应用重启后可从上一个完成批次继续
 - AI 生成的参考文档 URL 经过受信官方域名白名单校验，App 内置安全来源查看窗口
 - 面经题单可一键导出为本地 PDF，包含摘要、全部题目、结构化答案、代码和参考资料；生成过程不上传数据
+- 简历生成器支持经典、现代、极简三套模板，生成内容可逐项编辑、自动保存草稿并导出 A4 PDF
 
 ## macOS 提示“Apple 无法验证 mianshi”
 
@@ -72,7 +73,7 @@ npm run release -- 0.2.0
 
 ## 本地数据
 
-业务数据统一由 `src/lib/localStorage.ts` 管理，使用单一版本化 JSON 对象写入 `mianshi-app-data-v1`。页面层保留异步数据接口，桌面端、Android 和浏览器开发环境使用相同实现。
+面经和模型配置由 `src/lib/localStorage.ts` 管理，使用版本化 JSON 对象写入 `mianshi-app-data-v1`；简历草稿由 `src/lib/resumeStorage.ts` 写入独立的 `mianshi-resume-draft-v1`。页面层保留异步数据接口，桌面端、Android 和浏览器开发环境使用相同实现。
 
 API Key 不再写入 SQLite 或系统凭据库，会以明文形式存在应用本地存储中。请勿在共享设备上保存生产环境密钥；清除应用站点数据会同时删除模型配置、草稿和全部面经。
 

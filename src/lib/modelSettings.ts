@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { GeneratedInterviewExperience, GenerationResume } from './types';
+import type { GeneratedInterviewExperience, GeneratedResume, GenerationResume } from './types';
 import { getModelSettingsRecord, saveModelSettingsRecord } from './localStorage';
 
 export interface ModelSettings {
@@ -225,6 +225,24 @@ function assertNativeRuntime(): void {
 export async function testModelConnection(settings: ModelSettings): Promise<string> {
   assertNativeRuntime();
   return invoke<string>('test_model_connection', { settings: normalizeModelSettings(settings) });
+}
+
+export async function generateResume(
+  settings: ModelSettings,
+  description: string,
+): Promise<GeneratedResume> {
+  assertNativeRuntime();
+  const normalizedDescription = description.trim();
+  const descriptionLength = Array.from(normalizedDescription).length;
+  if (descriptionLength < 5) throw new Error('请至少用 5 个字符描述你的简历');
+  if (descriptionLength > 2_000) throw new Error('简历描述不能超过 2000 个字符');
+
+  return invoke<GeneratedResume>('generate_resume', {
+    request: {
+      settings: normalizeModelSettings(settings),
+      description: normalizedDescription,
+    },
+  });
 }
 
 export async function analyzeInterviewExperience(

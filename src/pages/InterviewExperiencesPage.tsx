@@ -11,6 +11,7 @@ import type { InterviewExperience } from '../lib/types';
 import { TopBar } from '../components/TopBar';
 
 interface InterviewExperiencesPageProps {
+  onBack: () => void;
   onCreate: () => void;
   onSettings: () => void;
   onSelect: (experience: InterviewExperience) => void;
@@ -35,6 +36,7 @@ function getLoadErrorMessage(error: unknown): string {
 }
 
 export function InterviewExperiencesPage({
+  onBack,
   onCreate,
   onSettings,
   onSelect,
@@ -65,6 +67,7 @@ export function InterviewExperiencesPage({
     <div className="page">
       <TopBar
         title="我的面经"
+        onBack={onBack}
         rightSlot={
           <button className="icon-button" onClick={onSettings} aria-label="打开设置">
             <GearSix size={22} weight="bold" aria-hidden="true" />

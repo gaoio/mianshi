@@ -43,6 +43,66 @@ pub struct GeneratedInterviewOutline {
     pub questions: Vec<GeneratedInterviewQuestionOutline>,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratedResumePersonal {
+    pub name: String,
+    pub headline: String,
+    pub phone: String,
+    pub email: String,
+    pub location: String,
+    pub website: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct GeneratedResumeSkillGroup {
+    pub category: String,
+    pub items: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratedResumeExperience {
+    pub company: String,
+    pub role: String,
+    pub start_date: String,
+    pub end_date: String,
+    pub highlights: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratedResumeProject {
+    pub name: String,
+    pub role: String,
+    pub start_date: String,
+    pub end_date: String,
+    pub summary: String,
+    pub highlights: Vec<String>,
+    pub technologies: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratedResumeEducation {
+    pub school: String,
+    pub degree: String,
+    pub major: String,
+    pub start_date: String,
+    pub end_date: String,
+    pub highlights: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct GeneratedResume {
+    pub personal: GeneratedResumePersonal,
+    pub summary: String,
+    pub skills: Vec<GeneratedResumeSkillGroup>,
+    pub experience: Vec<GeneratedResumeExperience>,
+    pub projects: Vec<GeneratedResumeProject>,
+    pub education: Vec<GeneratedResumeEducation>,
+}
+
 fn find_json_object(value: &str) -> Option<&str> {
     let bytes = value.as_bytes();
     let start = bytes.iter().position(|byte| *byte == b'{')?;
@@ -102,7 +162,11 @@ pub fn parse_json_object_response(content: &str) -> Result<serde_json::Value, St
         };
         match serde_json::from_str::<serde_json::Value>(candidate) {
             Ok(value) if value.is_object() => {
-                if value.get("title").is_some() && value.get("questions").is_some() {
+                if (value.get("title").is_some() && value.get("questions").is_some())
+                    || (value.get("personal").is_some()
+                        && value.get("skills").is_some()
+                        && value.get("experience").is_some())
+                {
                     return Ok(value);
                 }
                 if first_valid_object.is_none() {
@@ -189,6 +253,156 @@ fn parse_tags(value: Option<&serde_json::Value>) -> Vec<String> {
         }
     }
     tags
+}
+
+fn string_array(
+    value: Option<&serde_json::Value>,
+    field: &str,
+    max_items: usize,
+    max_chars: usize,
+) -> Result<Vec<String>, String> {
+    let raw_items = value
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| format!("模型结果缺少 {field} 数组"))?;
+    if raw_items.len() > max_items {
+        return Err(format!("模型结果中的 {field} 数量超过 {max_items} 项"));
+    }
+
+    let mut items = Vec::new();
+    for raw in raw_items {
+        let item = raw
+            .as_str()
+            .map(str::trim)
+            .filter(|item| !item.is_empty())
+            .map(|item| truncate_chars(item, max_chars));
+        if let Some(item) = item {
+            if !items.contains(&item) {
+                items.push(item);
+            }
+        }
+    }
+    Ok(items)
+}
+
+pub fn parse_generated_resume(content: &str) -> Result<GeneratedResume, String> {
+    let root = parse_json_object_response(content)?;
+    let raw_personal = root
+        .get("personal")
+        .and_then(serde_json::Value::as_object)
+        .ok_or_else(|| "模型结果缺少 personal 对象".to_string())?;
+    let personal_value = serde_json::Value::Object(raw_personal.clone());
+    let personal = GeneratedResumePersonal {
+        name: required_string(&personal_value, "name", 80)?,
+        headline: required_string(&personal_value, "headline", 120)?,
+        phone: optional_string(&personal_value, &["phone"], 80),
+        email: optional_string(&personal_value, &["email"], 120),
+        location: optional_string(&personal_value, &["location"], 100),
+        website: optional_string(&personal_value, &["website"], 200),
+    };
+    let summary = required_string(&root, "summary", 1_000)?;
+
+    let raw_skills = root
+        .get("skills")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| "模型结果缺少 skills 数组".to_string())?;
+    if raw_skills.is_empty() || raw_skills.len() > 8 {
+        return Err("模型结果中的技能分类需为 1 到 8 组".to_string());
+    }
+    let mut skills = Vec::with_capacity(raw_skills.len());
+    for (index, raw) in raw_skills.iter().enumerate() {
+        let category = required_string(raw, "category", 50)
+            .map_err(|error| format!("第 {} 组技能无效：{error}", index + 1))?;
+        let items = string_array(raw.get("items"), "items", 16, 50)
+            .map_err(|error| format!("第 {} 组技能无效：{error}", index + 1))?;
+        if items.is_empty() {
+            return Err(format!("第 {} 组技能没有有效内容", index + 1));
+        }
+        skills.push(GeneratedResumeSkillGroup { category, items });
+    }
+
+    let raw_experience = root
+        .get("experience")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| "模型结果缺少 experience 数组".to_string())?;
+    if raw_experience.len() > 10 {
+        return Err("模型结果中的工作经历超过 10 段".to_string());
+    }
+    let mut experience = Vec::with_capacity(raw_experience.len());
+    for (index, raw) in raw_experience.iter().enumerate() {
+        let highlights = string_array(raw.get("highlights"), "highlights", 8, 300)
+            .map_err(|error| format!("第 {} 段工作经历无效：{error}", index + 1))?;
+        if highlights.is_empty() {
+            return Err(format!("第 {} 段工作经历缺少成果描述", index + 1));
+        }
+        experience.push(GeneratedResumeExperience {
+            company: required_string(raw, "company", 120)
+                .map_err(|error| format!("第 {} 段工作经历无效：{error}", index + 1))?,
+            role: required_string(raw, "role", 120)
+                .map_err(|error| format!("第 {} 段工作经历无效：{error}", index + 1))?,
+            start_date: optional_string(raw, &["startDate", "start_date"], 40),
+            end_date: optional_string(raw, &["endDate", "end_date"], 40),
+            highlights,
+        });
+    }
+
+    let raw_projects = root
+        .get("projects")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| "模型结果缺少 projects 数组".to_string())?;
+    if raw_projects.len() > 10 {
+        return Err("模型结果中的项目经历超过 10 段".to_string());
+    }
+    let mut projects = Vec::with_capacity(raw_projects.len());
+    for (index, raw) in raw_projects.iter().enumerate() {
+        projects.push(GeneratedResumeProject {
+            name: required_string(raw, "name", 120)
+                .map_err(|error| format!("第 {} 个项目无效：{error}", index + 1))?,
+            role: optional_string(raw, &["role"], 120),
+            start_date: optional_string(raw, &["startDate", "start_date"], 40),
+            end_date: optional_string(raw, &["endDate", "end_date"], 40),
+            summary: required_string(raw, "summary", 500)
+                .map_err(|error| format!("第 {} 个项目无效：{error}", index + 1))?,
+            highlights: string_array(raw.get("highlights"), "highlights", 8, 300)
+                .map_err(|error| format!("第 {} 个项目无效：{error}", index + 1))?,
+            technologies: string_array(raw.get("technologies"), "technologies", 16, 50)
+                .map_err(|error| format!("第 {} 个项目无效：{error}", index + 1))?,
+        });
+    }
+
+    let raw_education = root
+        .get("education")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| "模型结果缺少 education 数组".to_string())?;
+    if raw_education.len() > 6 {
+        return Err("模型结果中的教育经历超过 6 段".to_string());
+    }
+    let mut education = Vec::with_capacity(raw_education.len());
+    for (index, raw) in raw_education.iter().enumerate() {
+        education.push(GeneratedResumeEducation {
+            school: required_string(raw, "school", 120)
+                .map_err(|error| format!("第 {} 段教育经历无效：{error}", index + 1))?,
+            degree: required_string(raw, "degree", 80)
+                .map_err(|error| format!("第 {} 段教育经历无效：{error}", index + 1))?,
+            major: optional_string(raw, &["major"], 100),
+            start_date: optional_string(raw, &["startDate", "start_date"], 40),
+            end_date: optional_string(raw, &["endDate", "end_date"], 40),
+            highlights: string_array(raw.get("highlights"), "highlights", 6, 300)
+                .map_err(|error| format!("第 {} 段教育经历无效：{error}", index + 1))?,
+        });
+    }
+
+    if experience.is_empty() && projects.is_empty() && education.is_empty() {
+        return Err("模型没有生成工作、项目或教育经历".to_string());
+    }
+
+    Ok(GeneratedResume {
+        personal,
+        summary,
+        skills,
+        experience,
+        projects,
+        education,
+    })
 }
 
 pub fn parse_generated_outline(content: &str) -> Result<GeneratedInterviewOutline, String> {
@@ -350,7 +564,7 @@ pub fn parse_generated_experience(content: &str) -> Result<GeneratedInterviewExp
 mod tests {
     use super::{
         find_json_object, parse_generated_experience, parse_generated_outline,
-        parse_json_object_response,
+        parse_generated_resume, parse_json_object_response,
     };
 
     #[test]
@@ -457,5 +671,70 @@ mod tests {
         assert_eq!(outline.questions.len(), 2);
         assert_eq!(outline.questions[0].difficulty, 3);
         assert_eq!(outline.questions[1].title, "缓存一致性怎么做？");
+    }
+
+    #[test]
+    fn parses_and_normalizes_generated_resume() {
+        let content = r#"```json
+        {
+          "personal": {
+            "name": "张三",
+            "headline": "Go 后端工程师",
+            "phone": "13800000000",
+            "email": "zhangsan@example.com",
+            "location": "上海",
+            "website": "github.com/zhangsan"
+          },
+          "summary": "三年后端开发经验，关注高并发与稳定性建设。",
+          "skills": [{"category":"后端","items":["Go","MySQL","Redis","Go"]}],
+          "experience": [{
+            "company": "示例科技",
+            "role": "后端工程师",
+            "startDate": "2023.06",
+            "endDate": "至今",
+            "highlights": ["负责订单服务开发与稳定性治理"]
+          }],
+          "projects": [{
+            "name": "订单平台",
+            "role": "核心开发",
+            "startDate": "2024.01",
+            "endDate": "2025.06",
+            "summary": "面向电商场景的订单服务。",
+            "highlights": ["设计幂等与补偿机制"],
+            "technologies": ["Go","Kafka"]
+          }],
+          "education": [{
+            "school": "示例大学",
+            "degree": "本科",
+            "major": "计算机科学",
+            "startDate": "2019.09",
+            "endDate": "2023.06",
+            "highlights": []
+          }]
+        }
+        ```"#;
+
+        let resume = parse_generated_resume(content).unwrap();
+        assert_eq!(resume.personal.name, "张三");
+        assert_eq!(resume.skills[0].items, vec!["Go", "MySQL", "Redis"]);
+        assert_eq!(resume.experience[0].start_date, "2023.06");
+        assert_eq!(resume.projects[0].technologies, vec!["Go", "Kafka"]);
+        assert_eq!(resume.education[0].major, "计算机科学");
+    }
+
+    #[test]
+    fn rejects_resume_without_any_experience_section() {
+        let content = r#"{
+          "personal": {"name":"候选人","headline":"产品经理"},
+          "summary": "有产品设计与协作经验。",
+          "skills": [{"category":"产品","items":["需求分析"]}],
+          "experience": [],
+          "projects": [],
+          "education": []
+        }"#;
+
+        assert!(parse_generated_resume(content)
+            .unwrap_err()
+            .contains("工作、项目或教育经历"));
     }
 }

@@ -53,6 +53,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             sources::open_source_window,
             commands::test_model_connection,
+            commands::generate_resume,
             commands::analyze_interview_experience,
             commands::cancel_interview_generation,
             app_updates::get_app_update_status,

@@ -24,6 +24,7 @@ pub enum ModelOutputFormat {
     Text,
     InterviewOutlineJson,
     InterviewExperienceJson,
+    ResumeJson,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -225,11 +226,136 @@ fn interview_outline_schema() -> serde_json::Value {
     })
 }
 
+fn resume_schema() -> serde_json::Value {
+    serde_json::json!({
+        "type": "object",
+        "properties": {
+            "personal": {
+                "type": "object",
+                "properties": {
+                    "name": { "type": "string" },
+                    "headline": { "type": "string" },
+                    "phone": { "type": "string" },
+                    "email": { "type": "string" },
+                    "location": { "type": "string" },
+                    "website": { "type": "string" }
+                },
+                "required": ["name", "headline", "phone", "email", "location", "website"],
+                "additionalProperties": false
+            },
+            "summary": { "type": "string" },
+            "skills": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 8,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "category": { "type": "string" },
+                        "items": {
+                            "type": "array",
+                            "minItems": 1,
+                            "maxItems": 16,
+                            "items": { "type": "string" }
+                        }
+                    },
+                    "required": ["category", "items"],
+                    "additionalProperties": false
+                }
+            },
+            "experience": {
+                "type": "array",
+                "maxItems": 10,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "company": { "type": "string" },
+                        "role": { "type": "string" },
+                        "startDate": { "type": "string" },
+                        "endDate": { "type": "string" },
+                        "highlights": {
+                            "type": "array",
+                            "minItems": 1,
+                            "maxItems": 8,
+                            "items": { "type": "string" }
+                        }
+                    },
+                    "required": ["company", "role", "startDate", "endDate", "highlights"],
+                    "additionalProperties": false
+                }
+            },
+            "projects": {
+                "type": "array",
+                "maxItems": 10,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": { "type": "string" },
+                        "role": { "type": "string" },
+                        "startDate": { "type": "string" },
+                        "endDate": { "type": "string" },
+                        "summary": { "type": "string" },
+                        "highlights": {
+                            "type": "array",
+                            "maxItems": 8,
+                            "items": { "type": "string" }
+                        },
+                        "technologies": {
+                            "type": "array",
+                            "maxItems": 16,
+                            "items": { "type": "string" }
+                        }
+                    },
+                    "required": [
+                        "name", "role", "startDate", "endDate", "summary", "highlights", "technologies"
+                    ],
+                    "additionalProperties": false
+                }
+            },
+            "education": {
+                "type": "array",
+                "maxItems": 6,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "school": { "type": "string" },
+                        "degree": { "type": "string" },
+                        "major": { "type": "string" },
+                        "startDate": { "type": "string" },
+                        "endDate": { "type": "string" },
+                        "highlights": {
+                            "type": "array",
+                            "maxItems": 6,
+                            "items": { "type": "string" }
+                        }
+                    },
+                    "required": [
+                        "school", "degree", "major", "startDate", "endDate", "highlights"
+                    ],
+                    "additionalProperties": false
+                }
+            }
+        },
+        "required": ["personal", "summary", "skills", "experience", "projects", "education"],
+        "additionalProperties": false
+    })
+}
+
 fn output_schema(output_format: ModelOutputFormat) -> Option<serde_json::Value> {
     match output_format {
         ModelOutputFormat::Text => None,
         ModelOutputFormat::InterviewOutlineJson => Some(interview_outline_schema()),
         ModelOutputFormat::InterviewExperienceJson => Some(interview_experience_schema()),
+        ModelOutputFormat::ResumeJson => Some(resume_schema()),
+    }
+}
+
+fn output_schema_name(output_format: ModelOutputFormat) -> &'static str {
+    match output_format {
+        ModelOutputFormat::ResumeJson => "resume",
+        ModelOutputFormat::Text
+        | ModelOutputFormat::InterviewOutlineJson
+        | ModelOutputFormat::InterviewExperienceJson => "interview_experience",
     }
 }
 
@@ -270,7 +396,7 @@ pub fn validate_context_budget(
         .saturating_sub(settings.output_length);
     if estimated_input > available_input {
         return Err(format!(
-            "当前请求预计需要 {estimated_input} 个输入 token，但上下文长度 {} 在为输出预留 {} token 后只剩 {available_input}；请提高上下文长度、降低输出长度或缩短面经",
+            "当前请求预计需要 {estimated_input} 个输入 token，但上下文长度 {} 在为输出预留 {} token 后只剩 {available_input}；请提高上下文长度、降低输出长度或缩短输入内容",
             settings.context_length, settings.output_length
         ));
     }
@@ -312,12 +438,13 @@ fn model_request_body(
     };
 
     if let Some(schema) = output_schema(output_format) {
+        let schema_name = output_schema_name(output_format);
         match settings.protocol {
             ModelProtocol::Openai => {
                 body["response_format"] = serde_json::json!({
                     "type": "json_schema",
                     "json_schema": {
-                        "name": "interview_experience",
+                        "name": schema_name,
                         "strict": true,
                         "schema": schema
                     }
@@ -327,7 +454,7 @@ fn model_request_body(
                 body["text"] = serde_json::json!({
                     "format": {
                         "type": "json_schema",
-                        "name": "interview_experience",
+                        "name": schema_name,
                         "strict": true,
                         "schema": schema
                     }
@@ -865,6 +992,31 @@ mod tests {
         let value = settings("https://api.example.com/v1");
         let body = model_request_body(&value, "system", "user", ModelOutputFormat::Text);
         assert!(body.get("response_format").is_none());
+    }
+
+    #[test]
+    fn requests_strict_resume_schema_with_a_distinct_name() {
+        let value = settings("https://api.example.com/v1");
+        let body = model_request_body(&value, "system", "user", ModelOutputFormat::ResumeJson);
+
+        assert_eq!(
+            body.pointer("/response_format/json_schema/name")
+                .and_then(serde_json::Value::as_str),
+            Some("resume")
+        );
+        let schema = body.pointer("/response_format/json_schema/schema").unwrap();
+        assert_eq!(
+            schema
+                .pointer("/properties/personal/additionalProperties")
+                .and_then(serde_json::Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            schema
+                .pointer("/properties/experience/items/properties/highlights/maxItems")
+                .and_then(serde_json::Value::as_u64),
+            Some(8)
+        );
     }
 
     #[test]

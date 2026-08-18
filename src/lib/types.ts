@@ -60,3 +60,55 @@ export interface GenerationResume {
   outline: GeneratedInterviewOutline;
   questions: GeneratedInterviewQuestion[];
 }
+
+export type ResumeTemplate = 'classic' | 'modern' | 'minimal';
+
+export interface ResumePersonal {
+  name: string;
+  headline: string;
+  phone: string;
+  email: string;
+  location: string;
+  website: string;
+}
+
+export interface ResumeSkillGroup {
+  category: string;
+  items: string[];
+}
+
+export interface ResumeExperience {
+  company: string;
+  role: string;
+  startDate: string;
+  endDate: string;
+  highlights: string[];
+}
+
+export interface ResumeProject {
+  name: string;
+  role: string;
+  startDate: string;
+  endDate: string;
+  summary: string;
+  highlights: string[];
+  technologies: string[];
+}
+
+export interface ResumeEducation {
+  school: string;
+  degree: string;
+  major: string;
+  startDate: string;
+  endDate: string;
+  highlights: string[];
+}
+
+export interface GeneratedResume {
+  personal: ResumePersonal;
+  summary: string;
+  skills: ResumeSkillGroup[];
+  experience: ResumeExperience[];
+  projects: ResumeProject[];
+  education: ResumeEducation[];
+}

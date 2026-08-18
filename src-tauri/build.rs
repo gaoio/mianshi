@@ -3,6 +3,7 @@ fn main() {
         tauri_build::Attributes::new().app_manifest(tauri_build::AppManifest::new().commands(&[
             "open_source_window",
             "test_model_connection",
+            "generate_resume",
             "analyze_interview_experience",
             "cancel_interview_generation",
             "get_app_update_status",

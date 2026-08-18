@@ -8,6 +8,9 @@ import type {
 } from './lib/types';
 import './App.css';
 
+const HomePage = lazy(() =>
+  import('./pages/HomePage').then((module) => ({ default: module.HomePage })),
+);
 const InterviewExperiencesPage = lazy(() =>
   import('./pages/InterviewExperiencesPage').then((module) => ({ default: module.InterviewExperiencesPage })),
 );
@@ -16,6 +19,9 @@ const CreateInterviewExperiencePage = lazy(() =>
 );
 const ModelSettingsPage = lazy(() =>
   import('./pages/ModelSettingsPage').then((module) => ({ default: module.ModelSettingsPage })),
+);
+const ResumeGeneratorPage = lazy(() =>
+  import('./pages/ResumeGeneratorPage').then((module) => ({ default: module.ResumeGeneratorPage })),
 );
 const SettingsPage = lazy(() =>
   import('./pages/SettingsPage').then((module) => ({ default: module.SettingsPage })),
@@ -34,7 +40,7 @@ const ExperienceQuestionDetailPage = lazy(() =>
 type Stack = Screen[];
 
 function App() {
-  const [stack, setStack] = useState<Stack>([{ name: 'experiences' }]);
+  const [stack, setStack] = useState<Stack>([{ name: 'home' }]);
 
   const currentScreen = stack[stack.length - 1];
 
@@ -162,9 +168,18 @@ function App() {
 
   function renderScreen(screen: Screen) {
     switch (screen.name) {
+      case 'home':
+        return (
+          <HomePage
+            onInterviewExperiences={() => push({ name: 'experiences' })}
+            onResumeGenerator={() => push({ name: 'resumeGenerator' })}
+            onSettings={() => push({ name: 'settings' })}
+          />
+        );
       case 'experiences':
         return (
           <InterviewExperiencesPage
+            onBack={pop}
             onCreate={() => push({ name: 'experienceCreate' })}
             onSettings={() => push({ name: 'settings' })}
             onSelect={openExperience}
@@ -182,6 +197,13 @@ function App() {
         );
       case 'modelSettings':
         return <ModelSettingsPage onBack={pop} />;
+      case 'resumeGenerator':
+        return (
+          <ResumeGeneratorPage
+            onBack={pop}
+            onOpenSettings={() => push({ name: 'modelSettings' })}
+          />
+        );
       case 'settings':
         return (
           <SettingsPage
