@@ -176,10 +176,8 @@ fn validate_resume(resume: &GenerationResume) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn test_model_connection(settings: ModelSettings) -> Result<String, String> {
-    let mut test_settings = settings.clone();
-    test_settings.output_length = test_settings.output_length.min(32);
     let content = call_model(
-        &test_settings,
+        &settings,
         "你正在执行连接测试。请只回复：连接成功",
         "测试模型连接",
         ModelOutputFormat::Text,
