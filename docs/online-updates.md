@@ -72,7 +72,7 @@ git tag v0.2.0
 git push origin v0.2.0
 ```
 
-GitHub Actions 会先创建 Draft Release，并行构建 macOS、Windows、Linux 和签名 Android APK。所有产物成功后才公开 Release；任一平台失败时 Release 保持草稿，客户端不会读取到半成品。
+GitHub Actions 会先创建 Draft Release，并行构建 macOS（Apple Silicon 与 Intel）、Windows 和签名 Android APK。所有产物成功后才公开 Release；任一平台失败时 Release 保持草稿，客户端不会读取到半成品。
 
 ## 安全边界
 
