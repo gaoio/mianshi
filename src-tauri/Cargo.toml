@@ -1,6 +1,6 @@
 [package]
 name = "mianshi"
-version = "0.2.3"
+version = "0.2.4"
 description = "刷面试题"
 authors = ["you"]
 edition = "2021"
