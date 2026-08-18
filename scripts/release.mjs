@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { normalizeUpdaterPublicKey } from './updater-key.mjs';
 
 const PROJECT_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const VERSION_FILES = [
@@ -213,6 +214,16 @@ function assertGithubConfiguration(repo) {
   if (missing.length) {
     fail(`GitHub 更新配置缺失：${missing.join(', ')}。请先运行 npm run update:setup -- ${repo}`);
   }
+  try {
+    normalizeUpdaterPublicKey(
+      capture('gh', ['variable', 'get', 'TAURI_UPDATER_PUBKEY', '--repo', repo], '读取更新公钥'),
+    );
+  } catch (error) {
+    fail(
+      `GitHub Variable TAURI_UPDATER_PUBKEY 无效：${error instanceof Error ? error.message : String(error)}`
+      + `。请重新运行 npm run update:setup -- ${repo}`,
+    );
+  }
 }
 
 function ensureRepository(repo) {
@@ -279,6 +290,9 @@ async function setup(repo) {
     fail(`桌面更新密钥不完整：${updaterKey}`);
   }
   verifyUpdaterKey(updaterKey, updaterPassword);
+  const normalizedUpdaterPublicKey = normalizeUpdaterPublicKey(
+    readFileSync(updaterPublicKey, 'utf8'),
+  );
 
   const androidPassword = await readConfirmedSecret('Android 签名密码');
   if (!existsSync(androidKey)) {
@@ -295,7 +309,7 @@ async function setup(repo) {
 
   setGithubSecret(repo, 'TAURI_SIGNING_PRIVATE_KEY', readFileSync(updaterKey, 'utf8'));
   setGithubSecret(repo, 'TAURI_SIGNING_PRIVATE_KEY_PASSWORD', updaterPassword);
-  setGithubVariable(repo, 'TAURI_UPDATER_PUBKEY', readFileSync(updaterPublicKey, 'utf8').trim());
+  setGithubVariable(repo, 'TAURI_UPDATER_PUBKEY', normalizedUpdaterPublicKey);
   setGithubSecret(repo, 'ANDROID_KEYSTORE_BASE64', readFileSync(androidKey).toString('base64'));
   setGithubSecret(repo, 'ANDROID_KEYSTORE_PASSWORD', androidPassword);
   setGithubSecret(repo, 'ANDROID_KEY_ALIAS', 'mianshi');

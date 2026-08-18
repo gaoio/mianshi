@@ -33,7 +33,7 @@ npm run release -- 0.2.0
 npm run tauri signer generate -- -w ~/.tauri/mianshi-updater.key
 ```
 
-将私钥全文保存为 GitHub Actions Secret `TAURI_SIGNING_PRIVATE_KEY`，将密码保存为 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`，将命令输出的公钥保存为 Repository Variable `TAURI_UPDATER_PUBKEY`。
+将私钥全文保存为 GitHub Actions Secret `TAURI_SIGNING_PRIVATE_KEY`，将密码保存为 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`，将生成的 `.pub` 文件原文（单行 Base64，不要解码或截断）保存为 Repository Variable `TAURI_UPDATER_PUBKEY`。
 
 使用 GitHub CLI 时可以执行：
 

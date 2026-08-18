@@ -4,6 +4,20 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing draft release tag to retry
+        required: true
+        type: string
+      desktop_only:
+        description: Reuse Android assets already uploaded to the draft
+        required: false
+        default: false
+        type: boolean
+
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
 permissions:
   contents: write
@@ -19,12 +33,16 @@ jobs:
         with:
           node-version: 22
       - name: Validate release version
-        run: |
-          node -e "const fs=require('fs'); const tag=process.env.GITHUB_REF_NAME.replace(/^v/, ''); const app=JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json')).version; const pkg=JSON.parse(fs.readFileSync('package.json')).version; if(tag!==app||tag!==pkg){throw new Error('Tag、tauri.conf.json 与 package.json 版本必须一致')}"
+        run: node -e "const fs=require('fs'); const ref=process.env.RELEASE_TAG; if(!/^v\d+\.\d+\.\d+$/.test(ref)) throw new Error('发布 Tag 必须是 vX.Y.Z'); const tag=ref.slice(1); const app=JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json')).version; const pkg=JSON.parse(fs.readFileSync('package.json')).version; if(tag!==app||tag!==pkg) throw new Error('Tag、tauri.conf.json 与 package.json 版本必须一致')"
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --verify-tag --draft --title "mianshi $GITHUB_REF_NAME" --notes "包含最新功能改进和问题修复。"
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true || { echo "$RELEASE_TAG 已经发布，拒绝覆盖"; exit 1; }
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "mianshi $RELEASE_TAG" --notes "包含最新功能改进和问题修复。"
+          fi
 
   publish-desktop:
     needs: create-release
@@ -63,12 +81,12 @@ jobs:
         if: matrix.target != ''
         run: rustup target add ${{ matrix.target }}
       - run: npm ci
-      - name: Validate updater signing configuration
+      - name: Configure and validate updater signing
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           MIANSHI_UPDATER_PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY }}
-        run: node -e "for (const name of ['TAURI_SIGNING_PRIVATE_KEY', 'TAURI_SIGNING_PRIVATE_KEY_PASSWORD', 'MIANSHI_UPDATER_PUBKEY']) if (!process.env[name]) throw new Error(name + ' is missing')"
+        run: node scripts/configure-updater.mjs
       - uses: tauri-apps/tauri-action@944946e3e4cac6603d1fe8f514171e9ecd3c78aa # v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -79,14 +97,15 @@ jobs:
           MIANSHI_RELEASE_URL: https://github.com/${{ github.repository }}/releases/latest
           APPLE_SIGNING_IDENTITY: '-'
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: mianshi ${{ github.ref_name }}
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: mianshi ${{ env.RELEASE_TAG }}
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
 
   publish-android:
     needs: create-release
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.desktop_only) }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -130,7 +149,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_TAG#v}"
           APK_SOURCE="$(find src-tauri/gen/android/app/build/outputs/apk -type f -name '*.apk' | head -n 1)"
           test -n "$APK_SOURCE" || { echo 'Release APK not found'; exit 1; }
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
@@ -142,20 +161,37 @@ jobs:
           node <<'NODE'
           const fs = require('fs');
           const repo = process.env.GITHUB_REPOSITORY;
-          const tag = process.env.GITHUB_REF_NAME;
+          const tag = process.env.RELEASE_TAG;
           fs.writeFileSync('android-latest.json', JSON.stringify({
             version: process.env.VERSION,
             notes: '包含最新功能改进和问题修复。',
             downloadUrl: `https://github.com/${repo}/releases/download/${tag}/${process.env.APK_NAME}`,
           }, null, 2));
           NODE
-          gh release upload "$GITHUB_REF_NAME" "$APK_NAME" android-latest.json --clobber
+          gh release upload "$RELEASE_TAG" "$APK_NAME" android-latest.json --clobber
 
   publish-release:
     needs: [publish-desktop, publish-android]
+    if: >-
+      ${{
+        always() &&
+        needs.publish-desktop.result == 'success' &&
+        (
+          needs.publish-android.result == 'success' ||
+          (github.event_name == 'workflow_dispatch' && inputs.desktop_only && needs.publish-android.result == 'skipped')
+        )
+      }}
     runs-on: ubuntu-22.04
     steps:
+      - name: Validate retained Android assets
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.desktop_only }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ASSETS="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+          grep -qx 'android-latest.json' <<<"$ASSETS"
+          grep -Eq '^mianshi-[0-9]+\.[0-9]+\.[0-9]+-android-arm64\.apk$' <<<"$ASSETS"
       - name: Publish only after every artifact succeeds
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+        run: gh release edit "$RELEASE_TAG" --draft=false --latest
