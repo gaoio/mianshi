@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">"mianshi"</string>
+    <string name="main_activity_title">"mianshi"</string>
+    <string name="source_activity_title">"官方来源"</string>
+</resources>

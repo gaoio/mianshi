@@ -1,0 +1,22 @@
+package com.gao.mianshi
+
+import android.webkit.WebSettings
+import android.webkit.WebView
+
+class SourceActivity : TauriActivity() {
+  override val handleBackNavigation: Boolean = true
+
+  override fun onWebViewCreate(webView: WebView) {
+    super.onWebViewCreate(webView)
+
+    // Remote documentation stays inside this one WebView. New windows and
+    // downloads are deliberately disabled; top-level navigation is also
+    // checked by Rust's trusted-source allowlist.
+    webView.settings.javaScriptCanOpenWindowsAutomatically = false
+    webView.settings.setSupportMultipleWindows(false)
+    webView.settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+    webView.settings.allowFileAccess = false
+    webView.settings.allowContentAccess = false
+    webView.setDownloadListener { _, _, _, _, _ -> }
+  }
+}

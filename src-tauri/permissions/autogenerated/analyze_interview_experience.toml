@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-analyze-interview-experience"
+description = "Enables the analyze_interview_experience command without any pre-configured scope."
+commands.allow = ["analyze_interview_experience"]
+
+[[permission]]
+identifier = "deny-analyze-interview-experience"
+description = "Denies the analyze_interview_experience command without any pre-configured scope."
+commands.deny = ["analyze_interview_experience"]

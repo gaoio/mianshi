@@ -1,0 +1,18 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "allow-open-source-window",
+    "allow-test-model-connection",
+    "allow-analyze-interview-experience",
+    "allow-cancel-interview-generation",
+    "allow-get-app-update-status",
+    "allow-check-app-update",
+    "allow-install-app-update",
+    "allow-open-app-release-page",
+    "allow-open-android-update"
+  ]
+}
