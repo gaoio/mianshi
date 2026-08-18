@@ -1027,10 +1027,89 @@ button:disabled {
 
 .experience-question-count {
   display: inline-block;
-  margin-top: 12px;
   color: var(--color-text-muted);
   font-size: 12px;
   font-weight: 700;
+}
+
+.experience-detail-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.experience-export-actions,
+.experience-export-message,
+.export-pdf-button {
+  display: inline-flex;
+  align-items: center;
+}
+
+.experience-export-actions {
+  gap: 10px;
+}
+
+.experience-export-message {
+  gap: 5px;
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.experience-detail-header .experience-export-error {
+  margin-top: 9px;
+  color: var(--color-danger);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.export-pdf-button {
+  min-height: 38px;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 14px;
+  border: 1px solid var(--color-primary-border-strong);
+  border-radius: 11px;
+  background: var(--color-surface);
+  color: var(--color-primary-soft);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.export-pdf-button:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: var(--color-primary-inset);
+}
+
+.export-pdf-button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.export-pdf-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.export-pdf-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+@media (max-width: 440px) {
+  .experience-detail-meta-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .experience-export-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 
 .danger-icon-button {

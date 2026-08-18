@@ -61,6 +61,8 @@ pub fn run() {
             app_updates::open_app_release_page,
             app_updates::open_android_update
         ])
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init());
     #[cfg(desktop)]
     let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());

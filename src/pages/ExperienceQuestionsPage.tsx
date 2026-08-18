@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CaretRight, MagnifyingGlass, Sparkle, Trash } from '@phosphor-icons/react';
+import {
+  CaretRight,
+  CheckCircle,
+  FilePdf,
+  MagnifyingGlass,
+  Sparkle,
+  Trash,
+} from '@phosphor-icons/react';
 import {
   deleteInterviewExperience,
   getInterviewExperience,
@@ -43,6 +50,9 @@ export function ExperienceQuestionsPage({
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState(0);
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState('');
+  const [exportError, setExportError] = useState('');
 
   const filteredQuestions = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -92,6 +102,27 @@ export function ExperienceQuestionsPage({
     }
   }
 
+  async function handleExportPdf() {
+    if (!experience || questions.length === 0 || exporting) return;
+    setExporting(true);
+    setExportMessage('');
+    setExportError('');
+    try {
+      const { exportExperiencePdf } = await import('../lib/pdfExport');
+      const result = await exportExperiencePdf(experience, questions);
+      if (result === 'saved') setExportMessage('PDF 已导出');
+    } catch (exportError) {
+      console.error('导出 PDF 失败:', exportError);
+      setExportError(
+        exportError instanceof Error
+          ? `PDF 导出失败：${exportError.message}`
+          : 'PDF 导出失败，请稍后重试',
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="page">
       <TopBar
@@ -116,11 +147,32 @@ export function ExperienceQuestionsPage({
           </span>
           <h2>{experience?.title || experienceTitle}</h2>
           {experience?.summary && <p>{experience.summary}</p>}
-          <span className="experience-question-count">
-            {questions.length > 0 && filteredQuestions.length !== questions.length
-              ? `${filteredQuestions.length} / ${questions.length} 道面试题`
-              : `${questions.length} 道面试题`}
-          </span>
+          <div className="experience-detail-meta-row">
+            <span className="experience-question-count">
+              {questions.length > 0 && filteredQuestions.length !== questions.length
+                ? `${filteredQuestions.length} / ${questions.length} 道面试题`
+                : `${questions.length} 道面试题`}
+            </span>
+            <div className="experience-export-actions">
+              {exportMessage && (
+                <span className="experience-export-message" role="status">
+                  <CheckCircle size={15} weight="fill" aria-hidden="true" />
+                  {exportMessage}
+                </span>
+              )}
+              <button
+                className="export-pdf-button"
+                onClick={() => void handleExportPdf()}
+                disabled={loading || !experience || questions.length === 0 || exporting}
+              >
+                <FilePdf size={18} weight="bold" aria-hidden="true" />
+                {exporting ? '正在生成…' : '导出 PDF'}
+              </button>
+            </div>
+          </div>
+          {exportError && (
+            <p className="experience-export-error" role="alert">{exportError}</p>
+          )}
         </header>
 
         {!loading && !error && questions.length > 0 && (

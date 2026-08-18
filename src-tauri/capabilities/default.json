@@ -5,6 +5,8 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
+    "dialog:allow-save",
+    "fs:allow-write-file",
     "allow-open-source-window",
     "allow-test-model-connection",
     "allow-analyze-interview-experience",

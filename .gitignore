@@ -3,6 +3,8 @@ node_modules/
 dist/
 coverage/
 .vite/
+output/
+tmp/
 *.tsbuildinfo
 
 # Rust and Tauri generated output
