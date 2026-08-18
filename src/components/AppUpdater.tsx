@@ -55,6 +55,7 @@ function formatBytes(bytes: number) {
 
 export function AppUpdater() {
   const [info, setInfo] = useState<AppUpdateInfo | null>(null);
+  const [hasChecked, setHasChecked] = useState(false);
   const [busy, setBusy] = useState<BusyState>('checking');
   const [progress, setProgress] = useState<AppUpdateProgress | null>(null);
   const [error, setError] = useState('');
@@ -67,8 +68,11 @@ export function AppUpdater() {
         if (!active) return;
         setInfo(status);
         if (status.configured && (status.canInstallInApp || status.platform === 'android')) {
-          const checked = await invoke<AppUpdateInfo>('check_app_update');
-          if (active) setInfo(checked);
+          const result = await invoke<AppUpdateInfo>('check_app_update');
+          if (active) {
+            setInfo(result);
+            setHasChecked(true);
+          }
         }
       } catch (loadError) {
         if (active) setError(messageFrom(loadError, '读取更新状态失败'));
@@ -87,6 +91,7 @@ export function AppUpdater() {
     setError('');
     try {
       setInfo(await invoke<AppUpdateInfo>('check_app_update'));
+      setHasChecked(true);
     } catch (checkError) {
       setError(messageFrom(checkError, '检查更新失败'));
     } finally {
@@ -142,16 +147,15 @@ export function AppUpdater() {
     }
   }
 
-  const checked = Boolean(info?.latestVersion);
   const statusText = !info
     ? '正在读取版本信息…'
     : !info.configured
-      ? '当前构建未配置在线更新'
+      ? '此版本暂不支持在线更新'
       : info.available
         ? `发现新版本 v${info.latestVersion}`
-        : checked
-          ? '当前已经是最新版本'
-          : '尚未检查更新';
+        : hasChecked
+          ? '已是最新版本'
+          : '点击“检查更新”获取最新版本信息';
 
   return (
     <section className="app-updater" aria-labelledby="app-updater-title">
@@ -170,10 +174,10 @@ export function AppUpdater() {
       <div className={`app-updater-status ${info?.available ? 'app-updater-status-new' : ''}`}>
         {info?.available
           ? <DownloadSimple size={20} weight="bold" aria-hidden="true" />
-          : info?.configured && checked
+          : info?.configured && hasChecked
             ? <CheckCircle size={20} weight="fill" aria-hidden="true" />
             : <WarningCircle size={20} weight="duotone" aria-hidden="true" />}
-        <span>{busy === 'checking' ? '正在连接 GitHub 检查更新…' : statusText}</span>
+        <span>{busy === 'checking' ? '正在检查更新…' : statusText}</span>
       </div>
 
       {info?.notes && info.available && <p className="app-updater-notes">{info.notes}</p>}
